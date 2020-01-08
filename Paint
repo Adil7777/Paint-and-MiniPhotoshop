@@ -1,0 +1,1538 @@
+from PyQt5.QtWidgets import QMainWindow, QApplication, QAction, QFileDialog
+from PyQt5.QtGui import QIcon, QImage, QPainter, QPen, QColor
+from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtWidgets import QColorDialog
+import base64
+import sqlite3
+
+
+class Paint(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        TITLLE = "Paint"
+        TOP = 0  # Координаты левого верхнего угла
+        LEFT = 0
+        WIDTH = 1920  # Размеры окна
+        HEIGHT = 1080
+
+        self.lastColor = None
+        self.lasxtSize = None
+        self.ifceraser = False
+        self.ground_color = Qt.white
+        self.ifBrush = True
+
+        self.setWindowTitle(TITLLE)  # Задаем основное окно, без которого просто никуда
+        self.setGeometry(TOP, LEFT, WIDTH, HEIGHT)
+        self.setWindowIcon(QIcon('paint.png'))
+
+        self.image = QImage(self.size(), QImage.Format_RGB32)  # Создаем картинку на которой можно будет рисовать
+        self.image.fill(Qt.white)  # Задаем цвет заднего фона
+
+        self.drawing = False
+        self.brushSize = 3  # Размер кисти по умолчанию
+        self.brushColor = Qt.black  # Цвет по умолчанию
+        self.ceraserBrush = 3  # Размер ластика по умолчанию
+        self.ceraserColor = Qt.white  # Цвет ластика
+        self.lastPoint = QPoint()
+
+        mainMenu = self.menuBar()  # Делаем Главное Меню
+        Menu = mainMenu.addMenu("Файл")  # Добавляем Меню "Файл"
+        Size = mainMenu.addMenu("Размер Кисти")  # Добавляем Меню "Размер Кисти"
+        Color = mainMenu.addMenu("Цвет")  # Добавляем Меню "Цвет"
+        Ins = mainMenu.addMenu('Инструменты')  # Добавляем Меню "Инструменты"
+        Ceraser = mainMenu.addMenu("Размер Ластика")  # Добавляем Меню "Размер Ластика"
+        backgroundColor = mainMenu.addMenu("Задний фон")  # Добавляем Меню "Задний фон"
+
+        ceraserAction = QAction("Ластик", self)  # Добавляем действие "Ластик" в меню "Инструменты"
+        ceraserAction.setShortcut("Ctrl+Shift+F")
+        Ins.addAction(ceraserAction)
+        ceraserAction.triggered.connect(self.ceraser)
+
+        brushAction = QAction("Кисть", self)  # Добавляем действие "Кисть" в меню "Инструменты"
+        brushAction.setShortcut("Ctrl+Shift+G")
+        Ins.addAction(brushAction)
+        brushAction.triggered.connect(self.brush)
+
+        manualAction = QAction("Вручную", self)  # Добавляем действие "Вручную" в меню "Цвет"
+        Color.addAction(manualAction)
+        manualAction.setShortcut("Ctrl+Shift+L")
+        manualAction.triggered.connect(self.manual)
+
+        manualGround = QAction("Вручную", self)  # Добавляем действие "Вручную" в меню "Задний Фон"
+        backgroundColor.addAction(manualGround)
+        manualGround.triggered.connect(self.manualGround)
+
+        redGround = QAction("Красный", self)  # Добавляем красный цвет на задний фон
+        backgroundColor.addAction(redGround)
+        redGround.triggered.connect(self.red)
+
+        greenGround = QAction("Зеленый", self)  # Добавляем зеленый цвет на задний фон
+        backgroundColor.addAction(greenGround)
+        greenGround.triggered.connect(self.green)
+
+        yellowGround = QAction("Желтый", self)  # Добавляем желтый цвет на задний фон
+        backgroundColor.addAction(yellowGround)
+        yellowGround.triggered.connect(self.yellow)
+
+        blueGround = QAction("Синий", self)  # Добавляем синий цвет на задний фон
+        backgroundColor.addAction(blueGround)
+        blueGround.triggered.connect(self.blue)
+
+        blackGround = QAction("Черный", self)  # Добавляем черный цвет на задний фон
+        backgroundColor.addAction(blackGround)
+        blackGround.triggered.connect(self.black)
+
+        whiteGround = QAction("Белый", self)  # Добавляем белый цвет на задний фон 
+        backgroundColor.addAction(whiteGround)
+        whiteGround.triggered.connect(self.white)
+
+        brownGround = QAction("Коричневый", self)  # Добавляем коричневый цвет на задний фон
+        backgroundColor.addAction(brownGround)
+        brownGround.triggered.connect(self.brown)
+
+        orangeGround = QAction("Оранежевый", self)  # Добавляем оранже цвет на задний фон
+        backgroundColor.addAction(orangeGround)
+        orangeGround.triggered.connect(self.orange)
+
+        saveAction = QAction("Сохранить", self)  # Добавляем возможность сохранить
+        saveAction.setShortcut("Ctrl+S")
+        Menu.addAction(saveAction)
+        saveAction.triggered.connect(self.save)
+
+        clearAction = QAction("Очистить", self)  # Добавляем возможность очистить
+        clearAction.setShortcut("Ctrl+C")
+        Menu.addAction(clearAction)
+        clearAction.triggered.connect(self.clear)
+
+        '''Добавляем размер ластика 5'''
+        ceraser5Action = QAction("5px", self)
+        Ceraser.addAction(ceraser5Action)
+        ceraser5Action.triggered.connect(self.ceraser5)
+
+        '''Добавляем размер ластика 10'''
+        ceraser10Action = QAction("10px", self)
+        Ceraser.addAction(ceraser10Action)
+        ceraser10Action.triggered.connect(self.ceraser10)
+
+        '''Добавляем размер ластика 15'''
+        ceraser15Action = QAction("15px", self)
+        Ceraser.addAction(ceraser15Action)
+        ceraser15Action.triggered.connect(self.ceraser15)
+
+        '''Добавляем размер ластика 20'''
+        ceraser20Action = QAction("20px", self)
+        Ceraser.addAction(ceraser20Action)
+        ceraser20Action.triggered.connect(self.ceraser20)
+
+        '''Добавляем размер ластика 25'''
+        ceraser25Action = QAction("25px", self)
+        Ceraser.addAction(ceraser25Action)
+        ceraser25Action.triggered.connect(self.ceraser25)
+
+        '''Добавляем размер ластика 30'''
+        ceraser30Action = QAction("30px", self)
+        Ceraser.addAction(ceraser30Action)
+        ceraser30Action.triggered.connect(self.ceraser30)
+
+        '''Добавляем размер ластика 35'''
+        ceraser35Action = QAction("35px", self)
+        Ceraser.addAction(ceraser35Action)
+        ceraser35Action.triggered.connect(self.ceraser35)
+
+        '''Добавляем размер ластика 40'''
+        ceraser40Action = QAction("40px", self)
+        Ceraser.addAction(ceraser40Action)
+        ceraser40Action.triggered.connect(self.ceraser40)
+
+        '''Добавляем размер ластика 45'''
+        ceraser45Action = QAction("45px", self)
+        Ceraser.addAction(ceraser45Action)
+        ceraser45Action.triggered.connect(self.ceraser45)
+
+        '''Добавляем размер ластика 50'''
+        ceraser50Action = QAction("50px", self)
+        Ceraser.addAction(ceraser50Action)
+        ceraser50Action.triggered.connect(self.ceraser50)
+
+        '''Добавляем размер ластика 55'''
+        ceraser55Action = QAction("55px", self)
+        Ceraser.addAction(ceraser55Action)
+        ceraser55Action.triggered.connect(self.ceraser55)
+
+        '''Добавляем размер ластика 60'''
+        ceraser60Action = QAction("60px", self)
+        Ceraser.addAction(ceraser60Action)
+        ceraser60Action.triggered.connect(self.ceraser60)
+
+        '''Добавляем размер ластика 65'''
+        ceraser65Action = QAction("65px", self)
+        Ceraser.addAction(ceraser65Action)
+        ceraser65Action.triggered.connect(self.ceraser65)
+
+        '''Добавляем размер ластика 70'''
+        ceraser70Action = QAction("70px", self)
+        Ceraser.addAction(ceraser70Action)
+        ceraser70Action.triggered.connect(self.ceraser70)
+
+        '''Добавляем размер ластика 75'''
+        ceraser75Action = QAction("75px", self)
+        Ceraser.addAction(ceraser75Action)
+        ceraser75Action.triggered.connect(self.ceraser75)
+
+        '''Добавляем размер ластика 80'''
+        ceraser80Action = QAction("80px", self)
+        Ceraser.addAction(ceraser80Action)
+        ceraser80Action.triggered.connect(self.ceraser80)
+
+        '''Добавляем размер ластика 85'''
+        ceraser85Action = QAction("85px", self)
+        Ceraser.addAction(ceraser85Action)
+        ceraser85Action.triggered.connect(self.ceraser85)
+
+        '''Добавляем размер ластика 90'''
+        ceraser90Action = QAction("90px", self)
+        Ceraser.addAction(ceraser90Action)
+        ceraser90Action.triggered.connect(self.ceraser90)
+
+        '''Добавляем размер ластика 95'''
+        ceraser95Action = QAction("95px", self)
+        Ceraser.addAction(ceraser95Action)
+        ceraser95Action.triggered.connect(self.ceraser95)
+
+        '''Добавляем размер ластика 100'''
+        ceraser100Action = QAction("100px", self)
+        Ceraser.addAction(ceraser100Action)
+        ceraser100Action.triggered.connect(self.ceraser100)
+
+        '''Добавляем размер ластика 105'''
+        ceraser105Action = QAction("105px", self)
+        Ceraser.addAction(ceraser105Action)
+        ceraser105Action.triggered.connect(self.ceraser105)
+
+        '''Добавляем размер ластика 110'''
+        ceraser110Action = QAction("110px", self)
+        Ceraser.addAction(ceraser110Action)
+        ceraser110Action.triggered.connect(self.ceraser110)
+
+        '''Добавляем размер ластика 115'''
+        ceraser115Action = QAction("115px", self)
+        Ceraser.addAction(ceraser115Action)
+        ceraser115Action.triggered.connect(self.ceraser115)
+
+        '''Добавляем размер ластика 120'''
+        ceraser120Action = QAction("120px", self)
+        Ceraser.addAction(ceraser120Action)
+        ceraser120Action.triggered.connect(self.ceraser120)
+
+        '''Добавляем размер ластика 125'''
+        ceraser125Action = QAction("125px", self)
+        Ceraser.addAction(ceraser125Action)
+        ceraser125Action.triggered.connect(self.ceraser125)
+
+        '''Добавляем размер ластика 130'''
+        ceraser130Action = QAction("130px", self)
+        Ceraser.addAction(ceraser130Action)
+        ceraser130Action.triggered.connect(self.ceraser130)
+
+        '''Добавляем размер ластика 135'''
+        ceraser135Action = QAction("135px", self)
+        Ceraser.addAction(ceraser135Action)
+        ceraser135Action.triggered.connect(self.ceraser135)
+
+        '''Добавляем размер ластика 140'''
+        ceraser140Action = QAction("140px", self)
+        Ceraser.addAction(ceraser140Action)
+        ceraser140Action.triggered.connect(self.ceraser140)
+
+        '''Добавляем размер ластика 145'''
+        ceraser145Action = QAction("145px", self)
+        Ceraser.addAction(ceraser145Action)
+        ceraser145Action.triggered.connect(self.ceraser145)
+
+        '''Добавляем размер ластика 150'''
+        ceraser150Action = QAction("150px", self)
+        Ceraser.addAction(ceraser150Action)
+        ceraser150Action.triggered.connect(self.ceraser150)
+
+        '''Добавляем размер ластика 155'''
+        ceraser155Action = QAction("155px", self)
+        Ceraser.addAction(ceraser155Action)
+        ceraser155Action.triggered.connect(self.ceraser155)
+
+        '''Добавляем размер ластика 160'''
+        ceraser160Action = QAction("160px", self)
+        Ceraser.addAction(ceraser160Action)
+        ceraser160Action.triggered.connect(self.ceraser160)
+
+        '''Добавляем размер ластика 165'''
+        ceraser165Action = QAction("165px", self)
+        Ceraser.addAction(ceraser165Action)
+        ceraser165Action.triggered.connect(self.ceraser165)
+
+        '''Добавляем размер ластика 170'''
+        ceraser170Action = QAction("170px", self)
+        Ceraser.addAction(ceraser170Action)
+        ceraser170Action.triggered.connect(self.ceraser170)
+
+        '''Добавляем размер ластика 175'''
+        ceraser175Action = QAction("175px", self)
+        Ceraser.addAction(ceraser175Action)
+        ceraser175Action.triggered.connect(self.ceraser175)
+
+        '''Добавляем размер ластика 180'''
+        ceraser180Action = QAction("180px", self)
+        Ceraser.addAction(ceraser180Action)
+        ceraser180Action.triggered.connect(self.ceraser180)
+
+        '''Добавляем размер ластика 185'''
+        ceraser185Action = QAction("185px", self)
+        Ceraser.addAction(ceraser185Action)
+        ceraser185Action.triggered.connect(self.ceraser185)
+
+        '''Добавляем размер ластика 190'''
+        ceraser190Action = QAction("190px", self)
+        Ceraser.addAction(ceraser190Action)
+        ceraser190Action.triggered.connect(self.ceraser190)
+
+        '''Добавляем размер ластика 195'''
+        ceraser195Action = QAction("195px", self)
+        Ceraser.addAction(ceraser195Action)
+        ceraser195Action.triggered.connect(self.ceraser195)
+
+        '''Добавляем размер ластика 200'''
+        ceraser200Action = QAction("200px", self)
+        Ceraser.addAction(ceraser200Action)
+        ceraser200Action.triggered.connect(self.ceraser200)
+
+        threepxAction = QAction("3px", self)  # Добавляем размер кисти "3"
+        Size.addAction(threepxAction)
+        threepxAction.triggered.connect(self.threePixel)
+
+        fourpxAction = QAction("4px", self)  # Добавляем размер кисти "4"
+        Size.addAction(fourpxAction)
+        fourpxAction.triggered.connect(self.fourPixel)
+
+        fivepxAction = QAction("5px", self)  # Добавляем размер кисти "5"
+        Size.addAction(fivepxAction)
+        fivepxAction.triggered.connect(self.fivePixel)
+
+        sixpxAction = QAction("6px", self)  # Добавляем размер кисти "6"
+        Size.addAction(sixpxAction)
+        threepxAction.triggered.connect(self.sixPixel)
+
+        sevenpxAction = QAction("7px", self)  # Добавляем размер кисти "7"
+        Size.addAction(sevenpxAction)
+        sevenpxAction.triggered.connect(self.sevenPixel)
+
+        eightpxAction = QAction("8px", self)  # Добавляем размер кисти "8"
+        Size.addAction(eightpxAction)
+        threepxAction.triggered.connect(self.eightPixel)
+
+        ninepxAction = QAction("9px", self)  # Добавляем размер кисти "9"
+        Size.addAction(ninepxAction)
+        ninepxAction.triggered.connect(self.ninePixel)
+
+        tenpxAction = QAction("10px", self)  # Добавляем размер кисти "10"
+        Size.addAction(tenpxAction)
+        tenpxAction.triggered.connect(self.tenPixel)
+
+        elevenpxAction = QAction("11px", self)  # Добавляем размер кисти "11"
+        Size.addAction(elevenpxAction)
+        elevenpxAction.triggered.connect(self.elevenPixel)
+
+        twelvepxAction = QAction("12px", self)  # Добавляем размер кисти "12"
+        Size.addAction(twelvepxAction)
+        twelvepxAction.triggered.connect(self.twelvePixel)
+
+        thirteenpxAction = QAction("13px", self)  # Добавляем размер кисти "13"
+        Size.addAction(thirteenpxAction)
+        thirteenpxAction.triggered.connect(self.thirteenPixel)
+
+        fourteenpxAction = QAction("14px", self)  # Добавляем размер кисти "14"
+        Size.addAction(fourteenpxAction)
+        fourteenpxAction.triggered.connect(self.fourteenPixel)
+
+        fifteenpxAction = QAction("15px", self)  # Добавляем размер кисти "15"
+        Size.addAction(fifteenpxAction)
+        fifteenpxAction.triggered.connect(self.fifteenPixel)
+
+        sixteenpxAction = QAction("16px", self)  # Добавляем размер кисти "16"
+        Size.addAction(sixteenpxAction)
+        sixteenpxAction.triggered.connect(self.sixteenPixel)
+
+        seventeenpxAction = QAction("17px", self)  # Добавляем размер кисти "17"
+        Size.addAction(seventeenpxAction)
+        seventeenpxAction.triggered.connect(self.seventeenPixel)
+
+        eighteenpxAction = QAction("18px", self)  # Добавляем размер кисти "18"
+        Size.addAction(eighteenpxAction)
+        eighteenpxAction.triggered.connect(self.eighteenPixel)
+
+        nineteenpxAction = QAction("19px", self)  # Добавляем размер кисти "19"
+        Size.addAction(nineteenpxAction)
+        nineteenpxAction.triggered.connect(self.nineteenPixel)
+
+        twenteenpxAction = QAction("20px", self)  # Добавляем размер кисти "20"
+        Size.addAction(twenteenpxAction)
+        twenteenpxAction.triggered.connect(self.twenteenPixel)
+
+        twentyonepxAction = QAction("21px", self)  # Добавляем размер кисти "21"
+        Size.addAction(twentyonepxAction)
+        twentyonepxAction.triggered.connect(self.twentyonePixel)
+
+        twentytwopxAction = QAction("22px", self)  # Добавляем размер кисти "22"
+        Size.addAction(twentytwopxAction)
+        twentytwopxAction.triggered.connect(self.twentytwoPixel)
+
+        twentythreepxAction = QAction("23px", self)  # Добавляем размер кисти "23"
+        Size.addAction(twentythreepxAction)
+        twentythreepxAction.triggered.connect(self.twentythreePixel)
+
+        twentyfourpxAction = QAction("24px", self)  # Добавляем размер кисти "24"
+        Size.addAction(twentyfourpxAction)
+        twentyfourpxAction.triggered.connect(self.twentyfourPixel)
+
+        twentyfivepxAction = QAction("25px", self)  # Добавляем размер кисти "25"
+        Size.addAction(twentyfivepxAction)
+        twentyfivepxAction.triggered.connect(self.twentyfivePixel)
+
+        twentysixpxAction = QAction("26px", self)  # Добавляем размер кисти "26"
+        Size.addAction(twentysixpxAction)
+        twentysixpxAction.triggered.connect(self.twentysixPixel)
+
+        twentysevenpxAction = QAction("27px", self)  # Добавляем размер кисти "27"
+        Size.addAction(twentysevenpxAction)
+        twentysevenpxAction.triggered.connect(self.twentysevenPixel)
+
+        twentyeightpxAction = QAction("28px", self)  # Добавляем размер кисти "28"
+        Size.addAction(twentyeightpxAction)
+        twentyeightpxAction.triggered.connect(self.twentyeightPixel)
+
+        twenteenpxAction = QAction("29px", self)  # Добавляем размер кисти "29"
+        Size.addAction(twenteenpxAction)
+        twenteenpxAction.triggered.connect(self.twenteenPixel)
+
+        thirtypxAction = QAction("30px", self)  # Добавляем размер кисти "30"
+        Size.addAction(thirtypxAction)
+        thirtypxAction.triggered.connect(self.thirtyPixel)
+
+        thirtyonepxAction = QAction("31px", self)  # Добавляем размер кисти "31"
+        Size.addAction(thirtyonepxAction)
+        thirtyonepxAction.triggered.connect(self.thirtyonePixel)
+
+        thirtytwopxAction = QAction("32px", self)  # Добавляем размер кисти "32"
+        Size.addAction(thirtytwopxAction)
+        thirtytwopxAction.triggered.connect(self.thirtytwoPixel)
+
+        thirtythreepxAction = QAction("33px", self)  # Добавляем размер кисти "33"
+        Size.addAction(thirtythreepxAction)
+        thirtythreepxAction.triggered.connect(self.thirtythreePixel)
+
+        thirtyfourpxAction = QAction("34px", self)  # Добавляем размер кисти "34"
+        Size.addAction(thirtyfourpxAction)
+        thirtyfourpxAction.triggered.connect(self.thirtyfourPixel)
+
+        thirtyfivepxAction = QAction("35px", self)  # Добавляем размер кисти "35"
+        Size.addAction(thirtyfivepxAction)
+        thirtyfivepxAction.triggered.connect(self.thirtyfivePixel)
+
+        thirtysixpxAction = QAction("36px", self)  # Добавляем размер кисти "36"
+        Size.addAction(thirtysixpxAction)
+        thirtysixpxAction.triggered.connect(self.thirtysixPixel)
+
+        thirtysixpxAction = QAction("37px", self)  # Добавляем размер кисти "37"
+        Size.addAction(thirtysixpxAction)
+        thirtysixpxAction.triggered.connect(self.thirtysixPixel)
+
+        thirtyeightpxAction = QAction("38px", self)  # Добавляем размер кисти "38"
+        Size.addAction(thirtyeightpxAction)
+        thirtyeightpxAction.triggered.connect(self.thirtyeightPixel)
+
+        thirtyninepxAction = QAction("39px", self)  # Добавляем размер кисти "39"
+        Size.addAction(thirtyninepxAction)
+        thirtyninepxAction.triggered.connect(self.thirtyninePixel)
+
+        fourtypxAction = QAction("40px", self)  # Добавляем размер кисти "40"
+        Size.addAction(fourtypxAction)
+        fourtypxAction.triggered.connect(self.fourtyPixel)
+
+        blackAction = QAction(QIcon("черный.png"), "Черный", self)  # Добавляем черный цвет
+        blackAction.setShortcut("Ctrl+B")
+        Color.addAction(blackAction)
+        blackAction.triggered.connect(self.blackColor)
+
+        whitekAction = QAction(QIcon("белый.png"), "Белый", self)  # Добавляем белый цвет
+        whitekAction.setShortcut("Ctrl+W")
+        Color.addAction(whitekAction)
+        whitekAction.triggered.connect(self.whiteColor)
+
+        redAction = QAction(QIcon("красный.png"), "Красный", self)  # Добавляем красный цвет
+        redAction.setShortcut("Ctrl+R")
+        Color.addAction(redAction)
+        redAction.triggered.connect(self.redColor)
+
+        greenAction = QAction(QIcon("зеленый.png"), "Зеленый", self)  # Добавляем зеленый цвет
+        greenAction.setShortcut("Ctrl+G")
+        Color.addAction(greenAction)
+        greenAction.triggered.connect(self.greenColor)
+
+        yellowAction = QAction(QIcon("желтый.png"), "Желтый", self)  # Добавляем желтый цвет
+        yellowAction.setShortcut("Ctrl+Y")
+        Color.addAction(yellowAction)
+        yellowAction.triggered.connect(self.yellowColor)
+
+        pinkAction = QAction(QIcon("розовый.png"), "Розовый", self)  # Добавляем розовый цвет
+        pinkAction.setShortcut("Ctrl+P")
+        Color.addAction(pinkAction)
+        pinkAction.triggered.connect(self.pinkColor)
+
+        blueAction = QAction(QIcon("синий.png"), "Синий", self)  # Добавляем синий цвет  
+        blueAction.setShortcut("Ctrl+Q")
+        Color.addAction(blueAction)
+        blueAction.triggered.connect(self.blueColor)
+
+        purpleAction = QAction(QIcon("фиолетовый.png"), "Фиолетовый", self)  # Добавляем фиолетовый цвет
+        purpleAction.setShortcut("Ctrl+V")
+        Color.addAction(purpleAction)
+        purpleAction.triggered.connect(self.purpleColor)
+
+        liacAction = QAction(QIcon("сиреневый.png"), "Сиреневый", self)  # Добавляем сиреневый цвет
+        liacAction.setShortcut("Ctrl+L")
+        Color.addAction(liacAction)
+        liacAction.triggered.connect(self.liacColor)
+
+        orangeAction = QAction(QIcon("оранжевый.png"), "Оранжевый", self)  # Добавляем оранжевый цвет
+        orangeAction.setShortcut("Ctrl+O")
+        Color.addAction(orangeAction)
+        orangeAction.triggered.connect(self.orangeColor)
+
+        salatAction = QAction(QIcon("салатовый.png"), "Салатовый", self)  # Добавляем салатовый цвет
+        salatAction.setShortcut("Ctrl+I")
+        Color.addAction(salatAction)
+        salatAction.triggered.connect(self.salatColor)
+
+        greyAction = QAction(QIcon("серый.png"), "Серый", self)  # Добавляем серый цвет
+        greyAction.setShortcut("Ctrl+F")
+        Color.addAction(greyAction)
+        greyAction.triggered.connect(self.greyColor)
+
+        burgundyAction = QAction(QIcon("бордовый.png"), "Бордовый", self)  # Добавляем бордовый цвет
+        burgundyAction.setShortcut("Ctrl+U")
+        Color.addAction(burgundyAction)
+        burgundyAction.triggered.connect(self.burgundyColor)
+
+        beigeAction = QAction(QIcon("бежевый.png"), "Бежевый", self)  # Добавляем бежевый цвет
+        beigeAction.setShortcut("Ctrl+H")
+        Color.addAction(beigeAction)
+        beigeAction.triggered.connect(self.beigeColor)
+
+        bronzeAction = QAction("Бронзовый", self)  # Добавляем бронзовый цвет
+        bronzeAction.setShortcut("Ctrl+E")
+        Color.addAction(bronzeAction)
+        bronzeAction.triggered.connect(self.bronzeColor)
+
+        brownAction = QAction(QIcon("коричневый.png"), "Коричневый", self)  # Добавляем коричневый цвет
+        brownAction.setShortcut("Ctrl+K")
+        Color.addAction(brownAction)
+        brownAction.triggered.connect(self.brownColor)
+
+        carrotAction = QAction(QIcon("морковный.png"), "Морковный", self)  # Добавляем морковный цвет
+        carrotAction.setShortcut("Ctrl+M")
+        Color.addAction(carrotAction)
+        carrotAction.triggered.connect(self.carrotColor)
+
+        copperAction = QAction("Медный", self)  # Добавляем медный цвет
+        copperAction.setShortcut("Ctrl+Shift+Q")
+        Color.addAction(copperAction)
+        copperAction.triggered.connect(self.copperColor)
+
+        coralAction = QAction("Коралловый", self)  # Добавляем коралловый цвет
+        coralAction.setShortcut("Ctrl+Shift+W")
+        Color.addAction(coralAction)
+        coralAction.triggered.connect(self.coralColor)
+
+        cyanAction = QAction(QIcon("голубой.png"), "Голубой", self)  # Добавляем голубой цвет
+        cyanAction.setShortcut("Ctrl+Shift+E")
+        Color.addAction(cyanAction)
+        cyanAction.triggered.connect(self.cyanColor)
+
+        emeraldAction = QAction(QIcon("изумрудный.png"), "Изумрудный", self)  # Добавляем изумрудный цвет
+        emeraldAction.setShortcut("Ctrl+Shift+R")
+        Color.addAction(emeraldAction)
+        emeraldAction.triggered.connect(self.emeraldColor)
+
+        firebrickAction = QAction("Кирпичный", self)  # Добавляем кирпичный цвет
+        firebrickAction.setShortcut("Ctrl+Shift+T")
+        Color.addAction(firebrickAction)
+        firebrickAction.triggered.connect(self.firebrickColor)
+
+        goldAction = QAction(QIcon("золотой.png"), "Золотой", self)  # Добавляем золотой цвет
+        goldAction.setShortcut("Ctrl+Shift+Y")
+        Color.addAction(goldAction)
+        goldAction.triggered.connect(self.goldColor)
+
+        jadeAction = QAction("Нефритовый", self)  # Добавляем нефритовый цвет
+        jadeAction.setShortcut("Ctrl+Shift+U")
+        Color.addAction(jadeAction)
+        jadeAction.triggered.connect(self.jadeColor)
+
+        lemonAction = QAction(QIcon("лимонный.png"), "Лимоновый", self)  # Добавляем лимоновый цвет
+        lemonAction.setShortcut("Ctrl+Shift+I")
+        Color.addAction(lemonAction)
+        lemonAction.triggered.connect(self.lemonColor)
+
+        limeAction = QAction("Лаймовый", self)  # Добавляем лаймовый цвет
+        limeAction.setShortcut("Ctrl+Shift+O")
+        Color.addAction(limeAction)
+        limeAction.triggered.connect(self.limeColor)
+
+        sapphireAction = QAction("Сапфировый", self)  # Добавляем сапфировый цвет
+        sapphireAction.setShortcut("Ctrl+Shift+P")
+        Color.addAction(sapphireAction)
+        sapphireAction.triggered.connect(self.sapphireColor)
+
+        silverAction = QAction("Серебряный", self)  # Добавляем серебряный цвет
+        silverAction.setShortcut("Ctrl+Shift+A")
+        Color.addAction(silverAction)
+        silverAction.triggered.connect(self.silverColor)
+
+        vanillaAction = QAction("Ванильный", self)  # Добавляем ванильный цвет
+        vanillaAction.setShortcut("Ctrl+Shift+S")
+        Color.addAction(vanillaAction)
+        vanillaAction.triggered.connect(self.vanillaColor)
+
+        chocolateAction = QAction("Шоколадный", self)  # Добавляем шоколадный цвет
+        chocolateAction.setShortcut("Ctrl+Shift+D")
+        Color.addAction(chocolateAction)
+        chocolateAction.triggered.connect(self.chocolateColor)
+
+    def mousePressEvent(self, event):
+        '''Эта функция вызывается каждый раз когда нажимается какая-либо кнопка мыши'''
+        if event.button() == Qt.LeftButton:
+            self.drawing = True
+            self.lastPoint = event.pos()
+            # print(self.lastPoint)
+
+    def mouseMoveEvent(self, event):
+        '''Эта функция вызывается каждый раз когда мышь меняет свои коордираты, 
+        то есть двигается'''
+        if (event.buttons() and Qt.LeftButton) and self.drawing:
+            '''Если нажаты кнопки и self.drawing == True, то рисовать'''
+            painter = QPainter(self.image)
+            '''Создаем кисть(карандаш)'''
+            painter.setPen(QPen(self.brushColor, self.brushSize, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            '''Рисует линию, операясь на старые и новые координаты'''
+            painter.drawLine(self.lastPoint, event.pos())
+            self.lastPoint = event.pos()
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        '''Проверка, если нажата ЛКМ, то не рисовать,
+        Так как мышь не двигается'''
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
+
+    def paintEvent(self, event):
+        canvasPainter = QPainter(self)
+        canvasPainter.drawImage(self.rect(), self.image, self.image.rect())
+
+    def manualGround(self):
+        self.backgroundcolor = QColorDialog.getColor()
+        # print(self.color)
+        self.image.fill(self.backgroundcolor)
+        self.ceraserColor = self.backgroundcolor
+        self.update()
+        if self.ifceraser:
+            self.brushColor = self.backgroundcolor
+        self.ground_color = self.backgroundcolor
+
+    def red(self):
+        '''Меняем Задний фон на красный цвет'''
+        self.image.fill(Qt.red)
+        self.ceraserColor = Qt.red
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.red
+        self.ground_color = Qt.red
+
+    def green(self):
+        '''Меняем Задний фон на зеленый цвет'''
+        self.image.fill(Qt.green)
+        self.ceraserColor = Qt.green
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.green
+        self.ground_color = Qt.green
+
+    def yellow(self):
+        '''Меняем Задний фон на желтый цвет'''
+        self.image.fill(Qt.yellow)
+        self.ceraserColor = Qt.yellow
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.yellow
+        self.ground_color = Qt.yellow
+
+    def blue(self):
+        '''Меняем Задний фон на синий цвет'''
+        self.image.fill(Qt.blue)
+        self.ceraserColor = Qt.blue
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.blue
+        self.ground_color = Qt.blue
+
+    def black(self):
+        '''Меняем Задний фон на черный цвет'''
+        self.image.fill(Qt.black)
+        self.ceraserColor = Qt.black
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.black
+        self.ground_color = Qt.black
+
+    def white(self):
+        '''Меняем Задний фон на белый цвет'''
+        self.image.fill(Qt.white)
+        self.ceraserColor = Qt.white
+        self.update()
+        if self.ifceraser:
+            self.brushColor = Qt.white
+        self.ground_color = Qt.white
+
+    def brown(self):
+        '''Меняем Задний фон на коричневый цвет'''
+        self.image.fill(QColor(150, 75, 0))
+        self.ceraserColor = QColor(150, 75, 0)
+        self.update()
+        if self.ifceraser:
+            self.brushColor = QColor(150, 75, 0)
+        self.ground_color = QColor(150, 75, 0)
+
+    def orange(self):
+        '''Меняем Задний фон на оранжевый цвет'''
+        self.image.fill(QColor(255, 165, 0))
+        self.ceraserColor = QColor(255, 165, 0)
+        self.update()
+        if self.ifceraser:
+            self.brushColor = QColor(255, 165, 0)
+        self.ground_color = QColor(255, 165, 0)
+
+    def save(self):
+        filePath, _ = QFileDialog.getSaveFileName(self, "Сохранить картинку", "",
+                                                  "PNG(*.png);;JPEG(*.jpg *.jpeg);;All Files(*.*) ")
+
+        '''"PNG(*.png);;JPEG(*.jpg *.jpeg);;All Files(*.*) 
+        " Выбирает только PNG и JPEG форматы'''
+        '''filePath - название файла, который вводит пользователь'''
+
+        if filePath == "":
+            return
+        self.image.save(filePath)
+        # print(filePath)
+
+        '''Кодирую рисунок в строку, чтобы потом занести в БД'''
+        with open(filePath, "rb") as img_file:
+            recoded_image = base64.b64encode(img_file.read())
+
+        # print(recoded_image.decode('utf-8'))
+        recoded_image = recoded_image.decode('utf-8')
+        # print(type(recoded_image))
+        # print(type(filePath))
+
+        # Подключение к базе
+        conn = sqlite3.connect('images.db')
+        # Создание курсора
+        c = conn.cursor()
+        # Наполнение таблицы
+        # Подтверждение отправки данных в базу
+        c.execute("INSERT INTO images (name, id) VALUES ('%s','%s')" % (filePath, recoded_image))
+        conn.commit()
+        c.close()
+        conn.close()
+
+    def clear(self):
+
+        '''Чтобы очистить можно просто закрасить рисунок в белый цвет'''
+        self.image.fill(self.ground_color)
+        self.update()
+
+    def ceraser(self):
+        self.ifBrush = False
+
+        '''Сохраняем последний цвет и размер кисти'''
+        if self.ifceraser:
+            pass
+        else:
+            self.lastColor = self.brushColor
+            self.lastSize = self.brushSize
+
+        self.brushColor = self.ceraserColor
+        self.brushSize = self.ceraserBrush
+
+        '''Меняем значение'''
+        self.ifceraser = True
+
+    def ceraser5(self):
+        '''Меняем размер ластика на 5'''
+        if self.ifceraser:
+            self.brushSize = 5
+        self.ceraserBrush = 5
+
+    def ceraser10(self):
+        '''Меняем размер ластика на 10'''
+        if self.ifceraser:
+            self.brushSize = 10
+        self.ceraserBrush = 10
+
+    def ceraser15(self):
+        '''Меняем размер ластика на 15'''
+        if self.ifceraser:
+            self.brushSize = 15
+        self.ceraserBrush = 15
+
+    def ceraser20(self):
+        '''Меняем размер ластика на 20'''
+        if self.ifceraser:
+            self.brushSize = 20
+        self.ceraserBrush = 20
+
+    def ceraser25(self):
+        '''Меняем размер ластика на 25'''
+        if self.ifceraser:
+            self.brushSize = 25
+        self.ceraserBrush = 25
+
+    def ceraser30(self):
+        '''Меняем размер ластика на 30'''
+        if self.ifceraser:
+            self.brushSize = 30
+        self.ceraserBrush = 30
+
+    def ceraser35(self):
+        '''Меняем размер ластика на 35'''
+        if self.ifceraser:
+            self.brushSize = 35
+        self.ceraserBrush = 35
+
+    def ceraser40(self):
+        '''Меняем размер ластика на 40'''
+        if self.ifceraser:
+            self.brushSize = 40
+        self.ceraserBrush = 40
+
+    def ceraser45(self):
+        '''Меняем размер ластика на 45'''
+        if self.ifceraser:
+            self.brushSize = 45
+        self.ceraserBrush = 45
+
+    def ceraser50(self):
+        '''Меняем размер ластика на 50'''
+        if self.ifceraser:
+            self.brushSize = 50
+        self.ceraserBrush = 50
+
+    def ceraser55(self):
+        '''Меняем размер ластика на 55'''
+        if self.ifceraser:
+            self.brushSize = 55
+        self.ceraserBrush = 55
+
+    def ceraser60(self):
+        '''Меняем размер ластика на 60'''
+        if self.ifceraser:
+            self.brushSize = 60
+        self.ceraserBrush = 60
+
+    def ceraser65(self):
+        '''Меняем размер ластика на 65'''
+        if self.ifceraser:
+            self.brushSize = 65
+        self.ceraserBrush = 65
+
+    def ceraser70(self):
+        '''Меняем размер ластика на 70'''
+        if self.ifceraser:
+            self.brushSize = 70
+        self.ceraserBrush = 70
+
+    def ceraser75(self):
+        '''Меняем размер ластика на 75'''
+        if self.ifceraser:
+            self.brushSize = 75
+        self.ceraserBrush = 75
+
+    def ceraser80(self):
+        '''Меняем размер ластика на 80'''
+        if self.ifceraser:
+            self.brushSize = 80
+        self.ceraserBrush = 80
+
+    def ceraser85(self):
+        '''Меняем размер ластика на 85'''
+        if self.ifceraser:
+            self.brushSize = 85
+        self.ceraserBrush = 85
+
+    def ceraser90(self):
+        '''Меняем размер ластика на 90'''
+        if self.ifceraser:
+            self.brushSize = 90
+        self.ceraserBrush = 90
+
+    def ceraser95(self):
+        '''Меняем размер ластика на 95'''
+        if self.ifceraser:
+            self.brushSize = 95
+        self.ceraserBrush = 95
+
+    def ceraser100(self):
+        '''Меняем размер ластика на 100'''
+        if self.ifceraser:
+            self.brushSize = 100
+        self.ceraserBrush = 100
+
+    def ceraser105(self):
+        '''Меняем размер ластика на 105'''
+        if self.ifceraser:
+            self.brushSize = 105
+        self.ceraserBrush = 105
+
+    def ceraser110(self):
+        '''Меняем размер ластика на 110'''
+        if self.ifceraser:
+            self.brushSize = 110
+        self.ceraserBrush = 110
+
+    def ceraser115(self):
+        '''Меняем размер ластика на 115'''
+        if self.ifceraser:
+            self.brushSize = 115
+        self.ceraserBrush = 115
+
+    def ceraser120(self):
+        '''Меняем размер ластика на 120'''
+        if self.ifceraser:
+            self.brushSize = 120
+        self.ceraserBrush = 120
+
+    def ceraser125(self):
+        '''Меняем размер ластика на 125'''
+        if self.ifceraser:
+            self.brushSize = 125
+        self.ceraserBrush = 125
+
+    def ceraser130(self):
+        '''Меняем размер ластика на 130'''
+        if self.ifceraser:
+            self.brushSize = 130
+        self.ceraserBrush = 130
+
+    def ceraser135(self):
+        '''Меняем размер ластика на 135'''
+        if self.ifceraser:
+            self.brushSize = 135
+        self.ceraserBrush = 135
+
+    def ceraser140(self):
+        '''Меняем размер ластика на 140'''
+        if self.ifceraser:
+            self.brushSize = 140
+        self.ceraserBrush = 140
+
+    def ceraser145(self):
+        '''Меняем размер ластика на 145'''
+        if self.ifceraser:
+            self.brushSize = 145
+        self.ceraserBrush = 145
+
+    def ceraser150(self):
+        '''Меняем размер ластика на 150'''
+        if self.ifceraser:
+            self.brushSize = 150
+        self.ceraserBrush = 150
+
+    def ceraser155(self):
+        '''Меняем размер ластика на 155'''
+        if self.ifceraser:
+            self.brushSize = 155
+        self.ceraserBrush = 155
+
+    def ceraser160(self):
+        '''Меняем размер ластика на 160'''
+        if self.ifceraser:
+            self.brushSize = 160
+        self.ceraserBrush = 160
+
+    def ceraser165(self):
+        '''Меняем размер ластика на 165'''
+        if self.ifceraser:
+            self.brushSize = 165
+        self.ceraserBrush = 165
+
+    def ceraser170(self):
+        '''Меняем размер ластика на 170'''
+        if self.ifceraser:
+            self.brushSize = 170
+        self.ceraserBrush = 170
+
+    def ceraser175(self):
+        '''Меняем размер ластика на 175'''
+        if self.ifceraser:
+            self.brushSize = 175
+        self.ceraserBrush = 175
+
+    def ceraser180(self):
+        '''Меняем размер ластика на 180'''
+        if self.ifceraser:
+            self.brushSize = 180
+        self.ceraserBrush = 180
+
+    def ceraser185(self):
+        '''Меняем размер ластика на 185'''
+        if self.ifceraser:
+            self.brushSize = 185
+        self.ceraserBrush = 185
+
+    def ceraser190(self):
+        '''Меняем размер ластика на 190'''
+        if self.ifceraser:
+            self.brushSize = 190
+        self.ceraserBrush = 190
+
+    def ceraser195(self):
+        '''Меняем размер ластика на 195'''
+        if self.ifceraser:
+            self.brushSize = 195
+        self.ceraserBrush = 195
+
+    def ceraser200(self):
+        '''Меняем размер ластика на 200'''
+        if self.ifceraser:
+            self.brushSize = 200
+        self.ceraserBrush = 200
+
+    def brush(self):
+        if not self.ifBrush:
+            '''Возвращаем прежние значения'''
+            self.brushSize = self.lastSize
+            self.brushColor = self.lastColor
+
+            self.ifceraser = False
+
+    def threePixel(self):
+        '''Меняем размер кисти на 3'''
+        if not self.ifceraser:
+            self.brushSize = 3
+        else:
+            self.lastSize = 3
+
+    def fourPixel(self):
+        '''Меняем размер кисти на 4'''
+        if not self.ifceraser:
+            self.brushSize = 4
+        else:
+            self.lastSize = 4
+
+    def fivePixel(self):
+        '''Меняем размер кисти на 5'''
+        if not self.ifceraser:
+            self.brushSize = 5
+        else:
+            self.lastSize = 5
+
+    def sixPixel(self):
+        '''Меняем размер кисти на 6'''
+        if not self.ifceraser:
+            self.brushSize = 6
+        else:
+            self.lastSize = 6
+
+    def sevenPixel(self):
+        '''Меняем размер кисти на 7'''
+        if not self.ifceraser:
+            self.brushSize = 7
+        else:
+            self.lastSize = 7
+
+    def eightPixel(self):
+        '''Меняем размер кисти на 8'''
+        if not self.ifceraser:
+            self.brushSize = 8
+        else:
+            self.lastSize = 8
+
+    def ninePixel(self):
+        '''Меняем размер кисти на 9'''
+        if not self.ifceraser:
+            self.brushSize = 9
+        else:
+            self.lastSize = 9
+
+    def tenPixel(self):
+        '''Меняем размер кисти на 10'''
+        if not self.ifceraser:
+            self.brushSize = 10
+        else:
+            self.lastSize = 10
+
+    def elevenPixel(self):
+        '''Меняем размер кисти на 11'''
+        if not self.ifceraser:
+            self.brushSize = 11
+        else:
+            self.lastSize = 11
+
+    def twelvePixel(self):
+        '''Меняем размер кисти на 12'''
+        if not self.ifceraser:
+            self.brushSize = 12
+        else:
+            self.lastSize = 12
+
+    def thirteenPixel(self):
+        '''Меняем размер кисти на 13'''
+        if not self.ifceraser:
+            self.brushSize = 13
+        else:
+            self.lastSize = 13
+
+    def fourteenPixel(self):
+        '''Меняем размер кисти на 14'''
+        if not self.ifceraser:
+            self.brushSize = 14
+        else:
+            self.lastSize = 14
+
+    def fifteenPixel(self):
+        '''Меняем размер кисти на 15'''
+        if not self.ifceraser:
+            self.brushSize = 15
+        else:
+            self.lastSize = 15
+
+    def sixteenPixel(self):
+        '''Меняем размер кисти на 16'''
+        if not self.ifceraser:
+            self.brushSize = 16
+        else:
+            self.lastSize = 16
+
+    def seventeenPixel(self):
+        '''Меняем размер кисти на 17'''
+        if not self.ifceraser:
+            self.brushSize = 17
+        else:
+            self.lastSize = 17
+
+    def eighteenPixel(self):
+        '''Меняем размер кисти на 18'''
+        if not self.ifceraser:
+            self.brushSize = 18
+        else:
+            self.lastSize = 18
+
+    def nineteenPixel(self):
+        '''Меняем размер кисти на 19'''
+        if not self.ifceraser:
+            self.brushSize = 19
+        else:
+            self.lastSize = 19
+
+    def twenteenPixel(self):
+        '''Меняем размер кисти на 20'''
+        if not self.ifceraser:
+            self.brushSize = 20
+        else:
+            self.lastSize = 20
+
+    def twentyonePixel(self):
+        '''Меняем размер кисти на 21'''
+        if not self.ifceraser:
+            self.brushSize = 21
+        else:
+            self.lastSize = 21
+
+    def twentytwoPixel(self):
+        '''Меняем размер кисти на 22'''
+        if not self.ifceraser:
+            self.brushSize = 22
+        else:
+            self.lastSize = 22
+
+    def twentythreePixel(self):
+        '''Меняем размер кисти на 23'''
+        if not self.ifceraser:
+            self.brushSize = 23
+        else:
+            self.lastSize = 23
+
+    def twentyfourPixel(self):
+        '''Меняем размер кисти на 24'''
+        if not self.ifceraser:
+            self.brushSize = 24
+        else:
+            self.lastSize = 24
+
+    def twentyfivePixel(self):
+        '''Меняем размер кисти на 25'''
+        if not self.ifceraser:
+            self.brushSize = 25
+        else:
+            self.lastSize = 25
+
+    def twentysixPixel(self):
+        '''Меняем размер кисти на 26'''
+        if not self.ifceraser:
+            self.brushSize = 26
+        else:
+            self.lastSize = 26
+
+    def twentysevenPixel(self):
+        '''Меняем размер кисти на 27'''
+        if not self.ifceraser:
+            self.brushSize = 27
+        else:
+            self.lastSize = 27
+
+    def twentyeightPixel(self):
+        '''Меняем размер кисти на 28'''
+        if not self.ifceraser:
+            self.brushSize = 28
+        else:
+            self.lastSize = 28
+
+    def twentyninePixel(self):
+        '''Меняем размер кисти на 29'''
+        if not self.ifceraser:
+            self.brushSize = 29
+        else:
+            self.lastSize = 29
+
+    def thirtyPixel(self):
+        '''Меняем размер кисти на 30'''
+        if not self.ifceraser:
+            self.brushSize = 30
+        else:
+            self.lastSize = 30
+
+    def thirtyonePixel(self):
+        '''Меняем размер кисти на 31'''
+        if not self.ifceraser:
+            self.brushSize = 31
+        else:
+            self.lastSize = 31
+
+    def thirtytwoPixel(self):
+        '''Меняем размер кисти на 32'''
+        if not self.ifceraser:
+            self.brushSize = 32
+        else:
+            self.lastSize = 32
+
+    def thirtythreePixel(self):
+        '''Меняем размер кисти на 33'''
+        if not self.ifceraser:
+            self.brushSize = 33
+        else:
+            self.lastSize = 33
+
+    def thirtyfourPixel(self):
+        '''Меняем размер кисти на 34'''
+        if not self.ifceraser:
+            self.brushSize = 34
+        else:
+            self.lastSize = 34
+
+    def thirtyfivePixel(self):
+        '''Меняем размер кисти на 35'''
+        if not self.ifceraser:
+            self.brushSize = 35
+        else:
+            self.lastSize = 35
+
+    def thirtysixPixel(self):
+        '''Меняем размер кисти на 36'''
+        if not self.ifceraser:
+            self.brushSize = 36
+        else:
+            self.lastSize = 36
+
+    def thirtysevenPixel(self):
+        '''Меняем размер кисти на 37'''
+        if not self.ifceraser:
+            self.brushSize = 37
+        else:
+            self.lastSize = 37
+
+    def thirtyeightPixel(self):
+        '''Меняем размер кисти на 38'''
+        if not self.ifceraser:
+            self.brushSize = 38
+        else:
+            self.lastSize = 38
+
+    def thirtyninePixel(self):
+        '''Меняем размер кисти на 39'''
+        if not self.ifceraser:
+            self.brushSize = 39
+        else:
+            self.lastSize = 39
+
+    def fourtyPixel(self):
+        '''Меняем размер кисти на 40'''
+        if not self.ifceraser:
+            self.brushSize = 40
+        else:
+            self.lastSize = 40
+
+    def manual(self):
+        '''Пользователь вручную выбирает цвет'''
+        self.color = QColorDialog.getColor()
+        ''' print(self.color)'''
+        self.lastColor = self.color
+        if not self.ifceraser:
+            '''Проверка, ластик или кисть'''
+            self.brushColor = self.color
+
+    def blackColor(self):
+        '''Ставим черный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.black
+        else:
+            self.lastColor = Qt.black
+
+    def whiteColor(self):
+        '''Ставим белый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.white
+        else:
+            self.lastColor = Qt.white
+
+    def redColor(self):
+        '''Ставим красный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.red
+        else:
+            self.lastColor = Qt.red
+
+    def greenColor(self):
+        '''Ставим зеленый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.green
+        else:
+            self.lastColor = Qt.green
+
+    def yellowColor(self):
+        '''Ставим желтый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.yellow
+        else:
+            self.lastColor = Qt.yellow
+
+    def purpleColor(self):
+        '''Ставим фиолетовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(128, 0, 128)
+        else:
+            self.lastColor = QColor(128, 0, 128)
+
+    def liacColor(self):
+        '''Ставим сиреневый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(200, 162, 200)
+        else:
+            self.lastColor = QColor(200, 162, 200)
+
+    def orangeColor(self):
+        '''Ставим оранжевый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(255, 165, 0)
+        else:
+            self.lastColor = QColor(255, 165, 0)
+
+    def salatColor(self):
+        '''Ставим салатовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(127, 255, 0)
+        else:
+            self.lastColor = QColor(127, 255, 0)
+
+    def pinkColor(self):
+        '''Ставим розовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(252, 15, 192)
+        else:
+            self.lastColor = QColor(252, 15, 192)
+
+    def blueColor(self):
+        '''Ставим синий цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = Qt.blue
+        else:
+            self.lastColor = Qt.blue
+
+    def greyColor(self):
+        '''Ставим серый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(128, 128, 128)
+        else:
+            self.lastColor = QColor(128, 128, 128)
+
+    def burgundyColor(self):
+        '''Ставим бордовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(114, 47, 55)
+        else:
+            self.lastColor = QColor(114, 47, 55)
+
+    def beigeColor(self):
+        '''Ставим бежевый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(245, 245, 220)
+        else:
+            self.lastColor = QColor(245, 245, 220)
+
+    def bronzeColor(self):
+        '''Ставим бронзовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(205, 127, 50)
+        else:
+            self.lastColor = QColor(205, 127, 50)
+
+    def brownColor(self):
+        '''Ставим коричневый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(150, 75, 0)
+        else:
+            self.lastColor = QColor(150, 75, 0)
+
+    def carrotColor(self):
+        '''Ставим морковный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(237, 145, 33)
+        else:
+            self.lastColor = QColor(237, 145, 33)
+
+    def copperColor(self):
+        '''Ставим медный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(184, 115, 51)
+        else:
+            self.lastColor = QColor(184, 115, 51)
+
+    def coralColor(self):
+        '''Ставим коралловый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(255, 127, 80)
+        else:
+            self.lastColor = QColor(255, 127, 80)
+
+    def cyanColor(self):
+        '''Ставим голубой цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(0, 255, 255)
+        else:
+            self.lastColor = QColor(0, 255, 255)
+
+    def emeraldColor(self):
+        '''Ставим изумрудный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(80, 200, 120)
+        else:
+            self.lastColor = QColor(80, 200, 120)
+
+    def firebrickColor(self):
+        '''Ставим кирпичный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(178, 34, 34)
+        else:
+            self.lastColor = QColor(178, 34, 34)
+
+    def goldColor(self):
+        '''Ставим золотой цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(255, 215, 0)
+        else:
+            self.lastColor = QColor(255, 215, 0)
+
+    def jadeColor(self):
+        '''Ставим нефритовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(0, 168, 107)
+        else:
+            self.lastColor = QColor(0, 168, 107)
+
+    def lemonColor(self):
+        '''Ставим лимоновый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(253, 233, 16)
+        else:
+            self.lastColor = QColor(253, 233, 16)
+
+    def limeColor(self):
+        '''Ставим лаймовый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(204, 255, 0)
+        else:
+            self.lastColor = QColor(204, 255, 0)
+
+    def sapphireColor(self):
+        '''Ставим сапфировый цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(8, 37, 103)
+        else:
+            self.lastColor = QColor(8, 37, 103)
+
+    def silverColor(self):
+        '''Ставим серебряный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(192, 192, 192)
+        else:
+            self.lastColor = QColor(192, 192, 192)
+
+    def vanillaColor(self):
+        '''Ставим ванильный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(243, 229, 171)
+        else:
+            self.lastColor = QColor(243, 229, 171)
+
+    def chocolateColor(self):
+        '''Ставим шоколадный цвет'''
+        '''Проверка, ластик или кисть'''
+        if not self.ifceraser:
+            self.brushColor = QColor(210, 105, 30)
+        else:
+            self.lastColor = QColor(210, 105, 30)
